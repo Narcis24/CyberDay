@@ -8,14 +8,22 @@ public class PayoutApprovalService {
         this.payoutRepository = payoutRepository;
     }
 
-    // VULNERABILITY (A06): the design has no concept of segregation of
-    // duties, whoever requested a payout is also allowed to approve it
-    // themselves. This is a design flaw: no amount of careful coding of
-    // *this* method fixes it, the approval workflow itself needs a rule
-    // that the approver cannot be the requester.
+    // Segregation of duties enforced below: requester cannot approve their own payout.
     public void approve(Long payoutId, Long approvingUserId) {
+        if (approvingUserId == null) {
+            throw new IllegalArgumentException("approvingUserId must not be null");
+        }
+
         PayoutRequest payout = payoutRepository.findById(payoutId)
                 .orElseThrow(() -> new RuntimeException("Payout not found"));
+
+        if (approvingUserId.equals(payout.getRequestedByUserId())) {
+            throw new IllegalArgumentException("Requester cannot approve their own payout");
+        }
+
+        if (!"PENDING".equals(payout.getApprovalStatus())) {
+            throw new IllegalStateException("Only pending payouts can be approved");
+        }
 
         payout.setApprovalStatus("APPROVED");
         payout.setApprovedByUserId(approvingUserId);
