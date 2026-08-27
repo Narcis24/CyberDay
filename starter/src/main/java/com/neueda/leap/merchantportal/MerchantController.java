@@ -9,13 +9,21 @@ public class MerchantController {
     @Autowired
     private PayoutRepository payoutRepository;
 
-    // VULNERABILITY (A01): returns any payout request by ID, with no check
-    // that the caller is the merchant (or an authorised staff member) it
-    // belongs to. Any logged-in merchant can view another merchant's
-    // pending/approved payout amounts.
+    @Autowired
+    private CurrentMerchantProvider currentMerchantProvider;
+
+    // FIX (A01 - Broken Access Control): verify the payout belongs to the
+    // caller before returning it. Returns 404 rather than 403 so an attacker
+    // can't use the response to tell apart "not yours" from "doesn't exist".
     @GetMapping("/api/payouts/{payoutId}")
     public PayoutRequest getPayout(@PathVariable Long payoutId) {
-        return payoutRepository.findById(payoutId)
-                .orElseThrow(() -> new RuntimeException("Payout not found"));
+        PayoutRequest payout = payoutRepository.findById(payoutId)
+                .orElseThrow(() -> new NotFoundException("Payout not found"));
+
+        if (!payout.getMerchantId().equals(currentMerchantProvider.currentMerchantId())) {
+            throw new NotFoundException("Payout not found");
+        }
+
+        return payout;
     }
 }
