@@ -9,6 +9,7 @@ public class PayoutApprovalService {
     }
 
     // Segregation of duties enforced below: requester cannot approve their own payout.
+
     public void approve(Long payoutId, Long approvingUserId) {
         if (approvingUserId == null) {
             throw new IllegalArgumentException("approvingUserId must not be null");
